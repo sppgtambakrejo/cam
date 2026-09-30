@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kamera Timestamp</title>
+<meta name="theme-color" content="#000000">
+<meta name="description" content="Kamera dengan stempel waktu, lokasi, dan watermark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kamera TS">
+<style>
+:root{--bg:#000;--fg:#fff;--mut:rgba(255,255,255,.65);--acc:#ffd23f;--sheet:#1c1c20;--line:#3a3a41;--field:#111114;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#000}}
+:root[data-theme="dark"]{--bg:#000}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+#app{position:fixed;inset:0;background:#000}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+button{font:inherit;color:inherit;border:0;background:rgba(0,0,0,.45);border-radius:22px;min-width:44px;height:44px;padding:0 14px;cursor:pointer}
+.top{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;justify-content:space-between;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 0}
+.top div{display:flex;gap:8px}
+#st{position:absolute;left:14px;bottom:176px;z-index:2;text-shadow:0 1px 5px #000,0 0 2px #000;pointer-events:none;line-height:1.25}
+#st b{display:block;font-size:44px;font-weight:700;letter-spacing:.5px}
+#st span{display:block;font-size:14px}
+.bot{position:absolute;bottom:0;left:0;right:0;z-index:3;padding:24px 18px calc(env(safe-area-inset-bottom,0px) + 18px);background:linear-gradient(transparent,rgba(0,0,0,.6))}
+.br{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.br input{flex:1;accent-color:var(--acc)}
+#bv{min-width:52px;padding:0;height:30px;font-size:13px}
+.sh{display:flex;justify-content:center}
+#shut{width:74px;height:74px;border-radius:50%;background:#fff;border:5px solid rgba(255,255,255,.45);background-clip:padding-box;padding:0}
+#shut:active{transform:scale(.93)}
+#msg{position:absolute;z-index:4;left:20px;right:20px;top:38%;text-align:center;font-size:15px;color:var(--mut);display:none}
+#flash{position:absolute;inset:0;background:#fff;z-index:9;opacity:0;pointer-events:none;transition:opacity .25s}
+.ov{position:absolute;inset:0;z-index:10;display:none;background:rgba(0,0,0,.6)}
+.ov.on{display:block}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:88%;overflow:auto;background:var(--sheet);border-radius:20px 20px 0 0;padding:18px 18px calc(env(safe-area-inset-bottom,0px) + 18px)}
+.sheet h2{margin:0 0 12px;font-size:18px}
+label{display:block;font-size:13px;color:var(--mut);margin:14px 0 6px}
+input[type=text],input[type=datetime-local]{width:100%;box-sizing:border-box;font:inherit;font-size:16px;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+.row{display:flex;gap:8px;margin-top:8px}
+.seg button{flex:1;border-radius:12px;background:var(--field);border:1px solid var(--line)}
+.seg button.on{background:var(--acc);color:#000;border-color:var(--acc);font-weight:600}
+.btn{background:var(--field);border:1px solid var(--line);border-radius:12px;width:100%;margin-top:8px}
+.pri{background:var(--acc);color:#000;font-weight:700;border-radius:12px;width:100%;margin-top:18px}
+small{display:block;color:var(--mut);font-size:12px;margin-top:6px}
+#pv{position:absolute;inset:0;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px calc(env(safe-area-inset-bottom,0px) + 14px);box-sizing:border-box}
+#pv img{flex:1;min-height:0;width:100%;object-fit:contain}
+#pv .row button{flex:1}
+#st{max-width:80%}#st span{white-space:pre-line}
+.g9{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.g9 button{border-radius:10px;background:var(--field);border:1px solid var(--line);height:38px;padding:0}.g9 button.on{background:var(--acc);color:#000}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}#wmp{position:absolute;z-index:2;pointer-events:none;display:none}
+#toast{position:absolute;z-index:20;left:50%;top:70px;transform:translateX(-50%);background:rgba(0,0,0,.8);padding:8px 14px;border-radius:16px;font-size:14px;display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <video id="v" autoplay playsinline muted></video>
+  <div id="msg"></div>
+  <div class="top">
+    <button id="bset" aria-label="Pengaturan">⚙️ Atur</button>
+    <div><button id="bnat" aria-label="Kamera bawaan">📷 Bawaan</button><button id="bflip" aria-label="Balik kamera">🔄</button></div>
+  </div>
+  <div id="st"><b id="s1"></b><span id="s2"></span><span id="s3"></span></div>
+  <img id="wmp" alt="">
+  <div class="bot">
+    <div class="br"><span>☀️</span><input id="br" type="range" min="50" max="170" value="100" aria-label="Kecerahan"><button id="bv">100%</button></div>
+    <div class="sh"><button id="shut" aria-label="Ambil foto"></button></div>
+  </div>
+  <div id="flash"></div>
+  <div id="toast"></div>
+  <input id="f" type="file" accept="image/*" capture="environment" hidden>
+
+  <div class="ov" id="set"><div class="sheet">
+    <h2>Pengaturan Stempel</h2>
+    <label for="lab">Nama tempat (opsional)</label>
+    <input id="lab" type="text" placeholder="Contoh: Posyandu Melati">
+    <label for="crd">Koordinat (tempel dari Google Maps)</label>
+    <input id="crd" type="text" inputmode="text" placeholder="-7.797068, 110.370529">
+    <small id="cs">Di Google Maps tekan lama pada titik lalu salin koordinatnya, atau tempel tautan Maps.</small>
+    <button class="btn" id="gps">📍 Pakai lokasi GPS saat ini</button>
+    <label for="adr">Alamat / jalan</label><input id="adr" type="text" placeholder="Jl. Kaliurang KM 5">
+    <div class="two"><div><label for="kel">Kelurahan/Desa</label><input id="kel" type="text"></div><div><label for="kec">Kecamatan</label><input id="kec" type="text"></div>
+    <div><label for="kot">Kota/Kabupaten</label><input id="kot" type="text"></div><div><label for="prv">Provinsi</label><input id="prv" type="text"></div>
+    <div><label for="neg">Negara</label><input id="neg" type="text"></div><div><label for="alt">Ketinggian (m)</label><input id="alt" type="text" inputmode="decimal"></div></div>
+    <label>Logo / watermark</label>
+    <button class="btn" id="wmb">🖼️ Pilih gambar logo</button><input id="wmf" type="file" accept="image/*" hidden>
+    <div id="wmc" style="display:none">
+      <label>Posisi</label><div class="g9" id="g9"></div>
+      <label>Ukuran: <span id="wsv"></span></label><input id="ws" type="range" min="5" max="50" style="width:100%;accent-color:var(--acc)">
+      <label>Opasitas: <span id="wov"></span></label><input id="wo" type="range" min="20" max="100" style="width:100%;accent-color:var(--acc)">
+      <button class="btn" id="wmx">Hapus logo</button>
+    </div>
+    <label>Waktu</label>
+    <div class="row seg"><button id="ta">Otomatis</button><button id="tm">Manual</button></div>
+    <div id="mw" style="display:none"><input id="dt" type="datetime-local" step="1" style="margin-top:8px"><small>Jam tetap berjalan maju dari waktu yang Anda atur.</small></div>
+    <button class="pri" id="ok">Selesai</button>
+  </div></div>
+
+  <div class="ov" id="pvw"><div id="pv">
+    <img id="pi" alt="Hasil foto">
+    <div class="row"><button id="pr">Ulangi</button><button id="ps" style="background:var(--acc);color:#000;font-weight:700">Simpan ke Galeri</button></div>
+  </div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const S={label:'',adr:'',kel:'',kec:'',kot:'',prv:'',neg:'Indonesia',alt:'',lat:'',lon:'',wm:null,wmd:'',wp:2,ws:20,wo:90,off:0,manual:false,facing:'environment',br:1,stream:null,blob:null,url:'',name:''};
+const KEYS=['label','adr','kel','kec','kot','prv','neg','alt','lat','lon','wp','ws','wo','wmd'];
+try{const x=JSON.parse(localStorage.getItem('kt')||'{}');KEYS.forEach(k=>{if(x[k]!==undefined)S[k]=x[k]})}catch(e){}
+function persist(){try{const o={};KEYS.forEach(k=>o[k]=S[k]);localStorage.setItem('kt',JSON.stringify(o))}catch(e){}}
+const HARI=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const BLN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const p2=n=>String(n).padStart(2,'0');
+const now=()=>new Date(Date.now()+S.off);
+function zone(){const o=-new Date().getTimezoneOffset();return o===420?'WIB':o===480?'WITA':o===540?'WIT':'GMT'+(o>=0?'+':'-')+Math.abs(o/60)}
+function coords(){const a=parseFloat(S.lat),b=parseFloat(S.lon);if(!(isFinite(a)&&isFinite(b)))return '';const al=parseFloat(S.alt);return 'Lat '+a.toFixed(6)+'  Lon '+b.toFixed(6)+(isFinite(al)?'  Alt '+Math.round(al)+' m':'')}
+const jn=a=>a.map(t=>(t||'').trim()).filter(Boolean).join(', ');
+function lines(){const d=now();return{t:p2(d.getHours())+':'+p2(d.getMinutes()),d:HARI[d.getDay()]+', '+d.getDate()+' '+BLN[d.getMonth()]+' '+d.getFullYear()+' · '+zone(),l:[(S.label||'').trim(),(S.adr||'').trim(),jn([S.kel,S.kec]),jn([S.kot,S.prv,S.neg])].filter(Boolean),c:coords()}}
+function tick(){const L=lines();$('s1').textContent=L.t;$('s2').textContent=L.d;$('s3').textContent=L.l.concat(L.c?[L.c]:[]).join('\n')}
+setInterval(tick,1000);tick();
+function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>e.style.display='none',2500)}
+function msg(t){const e=$('msg');e.textContent=t;e.style.display=t?'block':'none'}
+
+async function start(){
+  if(S.stream){S.stream.getTracks().forEach(t=>t.stop());S.stream=null}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){msg('Kamera langsung tidak tersedia di sini. Gunakan tombol "Bawaan" untuk membuka kamera perangkat.');return}
+  try{
+    S.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:S.facing},width:{ideal:1920},height:{ideal:1080}}});
+    $('v').srcObject=S.stream;msg('');
+  }catch(e){msg('Izin kamera ditolak atau tidak tersedia. Izinkan kamera, atau gunakan tombol "Bawaan" untuk membuka kamera perangkat.')}
+}
+$('bflip').onclick=()=>{S.facing=S.facing==='environment'?'user':'environment';start()};
+
+function setBr(v){S.br=v/100;$('v').style.filter='brightness('+S.br+')';$('bv').textContent=Math.round(v)+'%'}
+$('br').oninput=e=>setBr(+e.target.value);
+$('bv').onclick=()=>{$('br').value=100;setBr(100)};
+
+function bright(x,w,h,b){
+  if(Math.abs(b-1)<.01)return;
+  const im=x.getImageData(0,0,w,h),d=im.data,lut=new Uint8ClampedArray(256);
+  for(let i=0;i<256;i++)lut[i]=i*b;
+  for(let i=0;i<d.length;i+=4){d[i]=lut[d[i]];d[i+1]=lut[d[i+1]];d[i+2]=lut[d[i+2]]}
+  x.putImageData(im,0,0);
+}
+async function render(src,w,h){
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');x.drawImage(src,0,0,w,h);bright(x,w,h,S.br);
+  const L=lines(),u=Math.min(w,h)/100,m=3.5*u,mw=w*.86-m;
+  const F='system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+  const rows=[];
+  const add=(t,sz,wt)=>{if(!t)return;x.font=wt+' '+(sz*u)+'px '+F;let cur='';const ls=[];for(const k of t.split(' ')){const tt=cur?cur+' '+k:k;if(x.measureText(tt).width>mw&&cur){ls.push(cur);cur=k}else cur=tt}ls.push(cur);ls.forEach(r=>rows.push({t:r,s:sz,wt}))};
+  add(L.t,9,'700');add(L.d,3,'400');L.l.forEach((t,i)=>add(t,2.8,i?'400':'600'));add(L.c,2.6,'400');
+  const H=rows.reduce((q,r)=>q+r.s*u*1.3,0)+m*1.2,gh=Math.min(h,H+6*u);
+  const g=x.createLinearGradient(0,h-gh,0,h);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.6)');
+  x.fillStyle=g;x.fillRect(0,h-gh,w,gh);
+  x.fillStyle='#fff';x.textBaseline='alphabetic';x.shadowColor='rgba(0,0,0,.85)';x.shadowBlur=u*.9;x.shadowOffsetY=u*.25;
+  let y=h-m;
+  for(let i=rows.length-1;i>=0;i--){const r=rows[i];x.font=r.wt+' '+(r.s*u)+'px '+F;x.fillText(r.t,m,y);y-=r.s*u*1.3}
+  if(S.wm){
+    x.shadowColor='transparent';x.globalAlpha=S.wo/100;
+    const iw=S.wm.naturalWidth,ih=S.wm.naturalHeight;let dw=w*S.ws/100,dh=dw*ih/iw;
+    if(dh>h*.5){dh=h*.5;dw=dh*iw/ih}
+    const c3=S.wp%3,r3=(S.wp/3)|0;
+    x.drawImage(S.wm,c3===0?m:c3===1?(w-dw)/2:w-dw-m,r3===0?m:r3===1?(h-dh)/2:h-dh-m,dw,dh);
+    x.globalAlpha=1;
+  }
+  const d=now();
+  S.name='IMG_'+d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'_'+p2(d.getHours())+p2(d.getMinutes())+p2(d.getSeconds())+'.jpg';
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.95));
+  if(!blob){toast('Gagal membuat foto');return}
+  if(S.url)URL.revokeObjectURL(S.url);
+  S.blob=blob;S.url=URL.createObjectURL(blob);$('pi').src=S.url;$('pvw').classList.add('on');
+}
+$('shut').onclick=()=>{
+  const v=$('v');if(!v.videoWidth){toast('Kamera belum siap');return}
+  const f=$('flash');f.style.opacity=.7;setTimeout(()=>f.style.opacity=0,120);
+  render(v,v.videoWidth,v.videoHeight);
+};
+$('bnat').onclick=()=>$('f').click();
+$('f').onchange=async e=>{
+  const file=e.target.files[0];e.target.value='';if(!file)return;
+  try{const b=await createImageBitmap(file);await render(b,b.width,b.height)}catch(err){toast('Foto tidak bisa diproses')}
+};
+$('pr').onclick=()=>$('pvw').classList.remove('on');
+$('ps').onclick=async()=>{
+  if(!S.blob)return;
+  const file=new File([S.blob],S.name,{type:'image/jpeg'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return}}
+  catch(e){if(e&&e.name==='AbortError')return}
+  try{
+    const dl=window.claude&&await claude.use('downloads');
+    if(dl){await dl.save({filename:S.name,data:S.blob});toast('Foto disimpan');return}
+  }catch(e){if(e&&e.code==='declined')return}
+  const a=document.createElement('a');a.href=S.url;a.download=S.name;document.body.appendChild(a);a.click();a.remove();
+  toast('Foto diunduh');
+};
+
+/* Pengaturan */
+function openSet(){
+  FLD.forEach(([k,id])=>$(id).value=S[k]);wmUI();$('crd').value=S.lat!==''&&S.lon!==''?S.lat+', '+S.lon:'';
+  const d=now();$('dt').value=d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+'T'+p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds());
+  modeUI();$('set').classList.add('on');
+}
+function modeUI(){$('ta').classList.toggle('on',!S.manual);$('tm').classList.toggle('on',S.manual);$('mw').style.display=S.manual?'block':'none'}
+$('bset').onclick=openSet;
+$('ok').onclick=()=>{$('set').classList.remove('on');tick()};
+const FLD=[['label','lab'],['adr','adr'],['kel','kel'],['kec','kec'],['kot','kot'],['prv','prv'],['neg','neg'],['alt','alt']];
+FLD.forEach(([k,id])=>{$(id).oninput=e=>{S[k]=e.target.value;persist();tick()}});
+$('crd').oninput=e=>{
+  const m=e.target.value.replace(/,(?=\d)/g,'.').match(/(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)/);
+  if(m){const a=+m[1],b=+m[2];
+    if(Math.abs(a)<=90&&Math.abs(b)<=180){S.lat=a;S.lon=b;persist();$('cs').textContent='Koordinat valid: '+a.toFixed(6)+', '+b.toFixed(6);tick();return}}
+  $('cs').textContent='Format belum dikenali. Contoh: -7.797068, 110.370529';
+};
+$('gps').onclick=()=>{
+  if(!navigator.geolocation){toast('GPS tidak tersedia');return}
+  $('cs').textContent='Mencari lokasi…';
+  navigator.geolocation.getCurrentPosition(p=>{
+    S.lat=+p.coords.latitude.toFixed(6);S.lon=+p.coords.longitude.toFixed(6);if(p.coords.altitude!=null){S.alt=Math.round(p.coords.altitude);$('alt').value=S.alt}persist();
+    $('crd').value=S.lat+', '+S.lon;$('cs').textContent='Lokasi GPS terisi.';tick();
+  },()=>{$('cs').textContent='GPS ditolak/tidak tersedia. Isi koordinat secara manual.'},{enableHighAccuracy:true,timeout:15000});
+};
+$('ta').onclick=()=>{S.manual=false;S.off=0;modeUI();tick()};
+$('tm').onclick=()=>{S.manual=true;modeUI();applyDt()};
+function applyDt(){const t=new Date($('dt').value);if(!isNaN(t)){S.off=t.getTime()-Date.now();tick()}}
+$('dt').onchange=applyDt;$('dt').oninput=applyDt;
+
+/* Watermark */
+['↖','↑','↗','←','●','→','↙','↓','↘'].forEach((t,i)=>{const b=document.createElement('button');b.textContent=t;b.onclick=()=>{S.wp=i;persist();wmUI()};$('g9').appendChild(b)});
+function loadWm(d){if(!d){S.wm=null;wmUI();return}const im=new Image();im.onload=()=>{S.wm=im;wmUI()};im.src=d}
+function wmUI(){
+  $('wmc').style.display=S.wm?'block':'none';
+  [...$('g9').children].forEach((b,i)=>b.classList.toggle('on',i===S.wp));
+  $('ws').value=S.ws;$('wo').value=S.wo;$('wsv').textContent=S.ws+'%';$('wov').textContent=S.wo+'%';
+  const e=$('wmp');if(!S.wm){e.style.display='none';return}
+  const W=$('app').clientWidth,H=$('app').clientHeight,dw=W*S.ws/100,dh=dw*S.wm.naturalHeight/S.wm.naturalWidth,mg=12,c=S.wp%3,r=(S.wp/3)|0;
+  e.src=S.wmd;e.style.display='block';e.style.opacity=S.wo/100;e.style.width=dw+'px';
+  e.style.left=(c===0?mg:c===1?(W-dw)/2:W-dw-mg)+'px';e.style.top=(r===0?70:r===1?(H-dh)/2:H-dh-mg-170)+'px';
+}
+$('ws').oninput=e=>{S.ws=+e.target.value;persist();wmUI()};
+$('wo').oninput=e=>{S.wo=+e.target.value;persist();wmUI()};
+$('wmb').onclick=()=>$('wmf').click();
+$('wmf').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    const b=await createImageBitmap(f),k=Math.min(1,600/Math.max(b.width,b.height)),c=document.createElement('canvas');
+    c.width=Math.round(b.width*k);c.height=Math.round(b.height*k);c.getContext('2d').drawImage(b,0,0,c.width,c.height);
+    S.wmd=c.toDataURL('image/png');persist();loadWm(S.wmd);
+  }catch(err){toast('Gambar tidak bisa dibaca')}
+};
+$('wmx').onclick=()=>{S.wmd='';persist();loadWm('')};
+window.addEventListener('resize',wmUI);
+loadWm(S.wmd);
+
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+start();
+</script>
+</body>
+</html>
